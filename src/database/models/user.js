@@ -20,6 +20,12 @@ const UserScheme = new mongoose.Schema({
   password: {
     type: String,
   },
+  bio: {
+    type: String,
+  },
+  link: {
+    type: String,
+  },
   image: {
     type: String,
   },
