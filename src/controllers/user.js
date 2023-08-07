@@ -1,48 +1,64 @@
 const connectToDatabase = require('../database/database');
 const User = require('../database/models/user');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 
-const createUser = async (req, res) => {
-  const { fullname, email, username, password } = req.body;
+const getUserDetailsByUsername = async (req, res) => {
+  const { username } = req.params;
 
-  console.log(req.body);
+  await connectToDatabase();
 
-  //   await connectToDatabase();
+  try {
+    const user = await User.findOne({ username: username }, { password: 0 });
 
-  //   try {
-  //     bcrypt.hash(password, 10).then(async (hash) => {
-  //       const newUser = new User({
-  //         email,
-  //         fullname,
-  //         username,
-  //         password: hash,
-  //       });
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found',
+      });
+    }
 
-  //       await newUser.save();
+    return res.json({
+      message: 'User Details',
+      status: 200,
+      data: user,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Internal Server Error',
+    });
+  }
+};
 
-  //       let accessToken = jwt.sign(
-  //         { id: newUser._id, email: newUser.email },
-  //         process.env.SECRET_KEY
-  //       );
+const saveSettingUser = async (req, res) => {
+  const { userId, bio, link } = req.body;
 
-  //       return res.json({
-  //         message: 'Signup success',
-  //         status: 200,
-  //         data: {
-  //           ...newUser._doc,
-  //           accessToken,
-  //         },
-  //       });
-  //     });
-  //   } catch (error) {
-  //     return res.status(500).json({
-  //       status: 'error',
-  //       message: 'Internal Server Error',
-  //     });
-  //   }
+  await connectToDatabase();
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      { _id: userId },
+      {
+        bio: bio,
+        link: link,
+      }
+    );
+
+    return res.json({
+      message: 'User Details',
+      status: 200,
+      data: user,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Internal Server Error',
+    });
+  }
 };
 
 module.exports = {
-  createUser,
+  getUserDetailsByUsername,
+  saveSettingUser,
 };
