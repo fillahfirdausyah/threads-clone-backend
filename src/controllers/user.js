@@ -58,7 +58,52 @@ const saveSettingUser = async (req, res) => {
   }
 };
 
+const getAllUsers = async (req, res) => {
+  const username = req.query.username;
+
+  await connectToDatabase();
+
+  if (username) {
+    // search by username
+    try {
+      const users = await User.find(
+        { username: { $regex: username, $options: 'i' } },
+        { password: 0 }
+      );
+
+      return res.json({
+        message: 'Users',
+        status: 200,
+        data: users,
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Internal Server Error',
+      });
+    }
+  }
+
+  try {
+    const users = await User.find({}, { password: 0 });
+
+    return res.json({
+      message: 'Users',
+      status: 200,
+      data: users,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      status: 'error',
+      message: 'Internal Server Error',
+    });
+  }
+};
+
 module.exports = {
   getUserDetailsByUsername,
   saveSettingUser,
+  getAllUsers,
 };
