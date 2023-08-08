@@ -27,6 +27,7 @@ app.use(
 const threadsRoutes = require('./src/routes/threads');
 const usersRoutes = require('./src/routes/user');
 const authRoutes = require('./src/routes/auth');
+const followersRoutes = require('./src/routes/followers');
 
 app.get('/', (req, res) => {
   res.set('Content-Type', 'text/html');
@@ -39,6 +40,7 @@ app.get('/', (req, res) => {
 app.use('/v1', threadsRoutes);
 app.use('/v1', usersRoutes);
 app.use('/v1', authRoutes);
+app.use('/v1', followersRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running on port: ${port}`);
