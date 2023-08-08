@@ -52,29 +52,56 @@ const followUser = async (req, res) => {
 
 const getFollowersByUsername = async (req, res) => {
   await connectToDatabase();
+  const { username } = req.params;
+  const { sessionUserId } = req.query;
+
   try {
-    const { username } = req.params;
     const user = await User.findOne({
       username,
     });
+    const followerUser = await Followers.find({ user_id: user._id }).populate(
+      'follower_user_id'
+    );
 
-    if (!user) {
-      return res.status(404).json({
-        message: 'User not found',
-      });
-    }
+    const sessionUserFollowing = await Followers.find({
+      follower_user_id: sessionUserId,
+    });
 
-    const followers = await Followers.find({
-      user_id: user._id,
-    }).populate('follower_user_id');
+    const sessionUserFollowingSet = new Set(
+      sessionUserFollowing.map((item) => {
+        return item.user_id._id.toString();
+      })
+    );
 
-    const followerCount = await Followers.countDocuments({
-      user_id: user._id,
+    // const followersWithFollowingStatus = followerUser.map((item) => {
+    //   return {
+    //     ...item.toObject(),
+    //     isFollowing: sessionUserFollowingSet.has(
+    //       item.follower_user_id.toString()
+    //     ),
+    //   };
+    // });
+
+    const followersWithFollowingStatus = followerUser.map((item) => {
+      // console.log(
+      //   `Followers FillahFirdausyah: ${item.follower_user_id.username} - ID: ${item.follower_user_id._id}`
+      // );
+      // console.log({
+      //   isFollowing: sessionUserFollowingSet.has(
+      //     item.follower_user_id._id.toString()
+      //   ),
+      // });
+      return {
+        ...item.toObject(),
+        isFollowing: sessionUserFollowingSet.has(
+          item.follower_user_id._id.toString()
+        ),
+      };
     });
 
     return res.status(200).json({
       message: 'Success get followers',
-      data: { ...followers, followerCount },
+      data: followersWithFollowingStatus,
     });
   } catch (error) {
     console.log(error);
@@ -87,30 +114,37 @@ const getFollowersByUsername = async (req, res) => {
 
 const getFollowingByUsername = async (req, res) => {
   await connectToDatabase();
+  const { username } = req.params;
+  const { sessionUserId } = req.query;
   try {
-    const { username } = req.params;
-
     const user = await User.findOne({
       username,
     });
 
-    if (!user) {
-      return res.status(404).json({
-        message: 'User not found',
-      });
-    }
-
-    const following = await Followers.find({
+    const followingUser = await Followers.find({
       follower_user_id: user._id,
     }).populate('user_id');
 
-    const followingCount = await Followers.countDocuments({
-      follower_user_id: user._id,
+    const sessionUserFollowing = await Followers.find({
+      follower_user_id: sessionUserId,
+    });
+
+    const sessionUserFollowingSet = new Set(
+      sessionUserFollowing.map((item) => {
+        return item.user_id._id.toString();
+      })
+    );
+
+    const followingWithFollowingStatus = followingUser.map((item) => {
+      return {
+        ...item.toObject(),
+        isFollowing: sessionUserFollowingSet.has(item.user_id._id.toString()),
+      };
     });
 
     return res.status(200).json({
       message: 'Success get following',
-      data: { ...following, followingCount },
+      data: followingWithFollowingStatus,
     });
   } catch (error) {
     console.log(error);
@@ -120,6 +154,91 @@ const getFollowingByUsername = async (req, res) => {
     });
   }
 };
+
+// V1
+// const getFollowersByUsername = async (req, res) => {
+//   await connectToDatabase();
+//   const { username } = req.params;
+//   const { userId } = req.query;
+
+//   try {
+//     const user = await User.findOne({
+//       username,
+//     });
+
+//     if (!user) {
+//       return res.status(404).json({
+//         message: 'User not found',
+//       });
+//     }
+
+//     const hasFollowed = await Followers.findOne({
+//       user_id: user._id,
+//       follower_user_id: userId,
+//     });
+
+//     // get followers using populate
+
+//     const followers = await Followers.find({
+//       user_id: user._id,
+//     }).populate('follower_user_id');
+
+//     const followerCount = await Followers.countDocuments({
+//       user_id: user._id,
+//     });
+
+//     return res.status(200).json({
+//       message: 'Success get followers',
+//       data: followers,
+//       followerCount,
+//       isFollowed: hasFollowed ? true : false,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     return res.status(500).json({
+//       message: 'Internal Server Error',
+//       error: error.message,
+//     });
+//   }
+// };
+
+// V1
+// const getFollowingByUsername = async (req, res) => {
+//   await connectToDatabase();
+//   try {
+//     const { username } = req.params;
+
+//     const user = await User.findOne({
+//       username,
+//     });
+
+//     if (!user) {
+//       return res.status(404).json({
+//         message: 'User not found',
+//       });
+//     }
+
+//     const following = await Followers.find({
+//       follower_user_id: user._id,
+//     }).populate('user_id');
+
+//     const followingCount = await Followers.countDocuments({
+//       follower_user_id: user._id,
+//     });
+
+//     return res.status(200).json({
+//       message: 'Success get following',
+//       data: following,
+//       followingCount,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     return res.status(500).json({
+//       message: 'Internal Server Error',
+//       error: error.message,
+//     });
+//   }
+// };
 
 const unfollowUser = async (req, res) => {
   await connectToDatabase();
