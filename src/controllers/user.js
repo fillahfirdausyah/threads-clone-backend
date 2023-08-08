@@ -20,6 +20,11 @@ const getUserDetailsByUsername = async (req, res) => {
       });
     }
 
+    // get total followers
+    const totalFollowers = await Followers.countDocuments({
+      user_id: user._id,
+    });
+
     const hasFollowed = await Followers.findOne({
       user_id: user._id,
       follower_user_id: user_id,
@@ -45,7 +50,7 @@ const getUserDetailsByUsername = async (req, res) => {
     return res.json({
       message: 'User Details',
       status: 200,
-      data: { ...user._doc, isFollowed, isFollowedMe },
+      data: { ...user._doc, isFollowed, isFollowedMe, totalFollowers },
     });
   } catch (error) {
     console.log(error);
