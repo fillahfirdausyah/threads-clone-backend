@@ -1,8 +1,12 @@
 const connectToDatabase = require('../database/database');
 const User = require('../database/models/user');
+const Followers = require('../database/models/followers');
 
 const getUserDetailsByUsername = async (req, res) => {
   const { username } = req.params;
+  const { user_id } = req.query;
+  let isFollowed = false;
+  let isFollowedMe = false;
 
   await connectToDatabase();
 
@@ -16,10 +20,32 @@ const getUserDetailsByUsername = async (req, res) => {
       });
     }
 
+    const hasFollowed = await Followers.findOne({
+      user_id: user._id,
+      follower_user_id: user_id,
+    });
+
+    const hasFollowedMe = await Followers.findOne({
+      user_id: user_id,
+      follower_user_id: user._id,
+    });
+
+    if (hasFollowedMe) {
+      isFollowedMe = true;
+    } else {
+      isFollowedMe = false;
+    }
+
+    if (hasFollowed) {
+      isFollowed = true;
+    } else {
+      isFollowed = false;
+    }
+
     return res.json({
       message: 'User Details',
       status: 200,
-      data: user,
+      data: { ...user._doc, isFollowed, isFollowedMe },
     });
   } catch (error) {
     console.log(error);
