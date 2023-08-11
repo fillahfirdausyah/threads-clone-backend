@@ -1,9 +1,18 @@
 const connectToDatabase = require('../database/database');
 const Followers = require('../database/models/followers');
 const User = require('../database/models/user');
+const Notifications = require('../database/models/notifications');
 
+/**
+ * Function to handle request follow user
+ @param req
+ @param res
+ */
 const followUser = async (req, res) => {
+  // Connect to DB
   await connectToDatabase();
+  // Get socket io object
+  const socketio = req.app.get('socketio');
 
   try {
     const { username } = req.params;
@@ -37,6 +46,28 @@ const followUser = async (req, res) => {
 
     await newFollower.save();
 
+    const checkNotifications = await Notifications.find({
+      user_id: userWillFollow._id,
+      data: userId,
+    });
+
+    if (checkNotifications.length === 0) {
+      const newNotifications = new Notifications({
+        user_id: userWillFollow._id,
+        type: 'follow',
+        data: userId,
+      });
+      await newNotifications.save();
+      // Trigger event follow that contain in index.js
+      socketio.emit(`notification:${userWillFollow._id}`, newNotifications);
+    } else {
+      const notifications = await Notifications.updateOne(
+        { user_id: userWillFollow._id, type: 'follow', data: userId },
+        { created_at: new Date() }
+      );
+      socketio.emit(`notification:${userWillFollow._id}`, notifications);
+    }
+
     return res.status(200).json({
       message: 'Success follow user',
       data: newFollower,
@@ -50,6 +81,11 @@ const followUser = async (req, res) => {
   }
 };
 
+/**
+ * Function to handle request get Followers by username
+ @param req
+ @param res
+ */
 const getFollowersByUsername = async (req, res) => {
   await connectToDatabase();
   const { username } = req.params;
@@ -73,24 +109,7 @@ const getFollowersByUsername = async (req, res) => {
       })
     );
 
-    // const followersWithFollowingStatus = followerUser.map((item) => {
-    //   return {
-    //     ...item.toObject(),
-    //     isFollowing: sessionUserFollowingSet.has(
-    //       item.follower_user_id.toString()
-    //     ),
-    //   };
-    // });
-
     const followersWithFollowingStatus = followerUser.map((item) => {
-      // console.log(
-      //   `Followers FillahFirdausyah: ${item.follower_user_id.username} - ID: ${item.follower_user_id._id}`
-      // );
-      // console.log({
-      //   isFollowing: sessionUserFollowingSet.has(
-      //     item.follower_user_id._id.toString()
-      //   ),
-      // });
       return {
         ...item.toObject(),
         isFollowing: sessionUserFollowingSet.has(
@@ -112,6 +131,11 @@ const getFollowersByUsername = async (req, res) => {
   }
 };
 
+/**
+ * Function to handle request get Following by username
+ @param req
+ @param res
+ */
 const getFollowingByUsername = async (req, res) => {
   await connectToDatabase();
   const { username } = req.params;
@@ -155,91 +179,11 @@ const getFollowingByUsername = async (req, res) => {
   }
 };
 
-// V1
-// const getFollowersByUsername = async (req, res) => {
-//   await connectToDatabase();
-//   const { username } = req.params;
-//   const { userId } = req.query;
-
-//   try {
-//     const user = await User.findOne({
-//       username,
-//     });
-
-//     if (!user) {
-//       return res.status(404).json({
-//         message: 'User not found',
-//       });
-//     }
-
-//     const hasFollowed = await Followers.findOne({
-//       user_id: user._id,
-//       follower_user_id: userId,
-//     });
-
-//     // get followers using populate
-
-//     const followers = await Followers.find({
-//       user_id: user._id,
-//     }).populate('follower_user_id');
-
-//     const followerCount = await Followers.countDocuments({
-//       user_id: user._id,
-//     });
-
-//     return res.status(200).json({
-//       message: 'Success get followers',
-//       data: followers,
-//       followerCount,
-//       isFollowed: hasFollowed ? true : false,
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     return res.status(500).json({
-//       message: 'Internal Server Error',
-//       error: error.message,
-//     });
-//   }
-// };
-
-// V1
-// const getFollowingByUsername = async (req, res) => {
-//   await connectToDatabase();
-//   try {
-//     const { username } = req.params;
-
-//     const user = await User.findOne({
-//       username,
-//     });
-
-//     if (!user) {
-//       return res.status(404).json({
-//         message: 'User not found',
-//       });
-//     }
-
-//     const following = await Followers.find({
-//       follower_user_id: user._id,
-//     }).populate('user_id');
-
-//     const followingCount = await Followers.countDocuments({
-//       follower_user_id: user._id,
-//     });
-
-//     return res.status(200).json({
-//       message: 'Success get following',
-//       data: following,
-//       followingCount,
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     return res.status(500).json({
-//       message: 'Internal Server Error',
-//       error: error.message,
-//     });
-//   }
-// };
-
+/**
+ * Function to handle request unfollow user
+ @param req
+ @param res
+ */
 const unfollowUser = async (req, res) => {
   await connectToDatabase();
   try {
