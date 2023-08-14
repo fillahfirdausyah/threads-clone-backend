@@ -56,14 +56,20 @@ const followUser = async (req, res) => {
         user_id: userWillFollow._id,
         type: 'follow',
         data: userId,
+        actionUser: userId,
       });
       await newNotifications.save();
       // Trigger event follow that contain in index.js
       socketio.emit(`notification:${userWillFollow._id}`, newNotifications);
     } else {
       const notifications = await Notifications.updateOne(
-        { user_id: userWillFollow._id, type: 'follow', data: userId },
-        { created_at: new Date() }
+        {
+          user_id: userWillFollow._id,
+          type: 'follow',
+          data: userId,
+          actionUser: userId,
+        },
+        { action_at: new Date() }
       );
       socketio.emit(`notification:${userWillFollow._id}`, notifications);
     }
