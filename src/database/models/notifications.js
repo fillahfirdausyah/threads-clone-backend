@@ -13,6 +13,10 @@ const NotificationsSchema = new mongoose.Schema({
   },
   data: {
     type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
+  actionUser: {
+    type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
   },
@@ -20,11 +24,24 @@ const NotificationsSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-  timestamp: {
+  action_at: {
     type: Date,
     default: Date.now,
   },
 });
+
+NotificationsSchema.methods.getDataModel = function () {
+  switch (this.type) {
+    case 'follow':
+      return 'User';
+    case 'like':
+      return 'Thread';
+    case 'comment':
+      return 'Comment';
+    default:
+      return null;
+  }
+};
 
 const Notifications =
   mongoose.models.Notifications ||
