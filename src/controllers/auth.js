@@ -3,6 +3,11 @@ const User = require('../database/models/user');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+/**
+ * Function to handle request Sign Up
+ @param req
+ @param res
+ */
 const signup = async (req, res) => {
   const { fullname, email, username, password } = req.body;
 
@@ -33,6 +38,11 @@ const signup = async (req, res) => {
   }
 };
 
+/**
+ * Function to handle request Sign In
+ @param req
+ @param res
+ */
 const signin = async (req, res) => {
   const { username, password } = req.body;
 
