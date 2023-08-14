@@ -12,6 +12,14 @@ const ThreadScheme = new mongoose.Schema({
   image: {
     type: String,
   },
+  totalLikes: {
+    type: Number,
+    default: 0,
+  },
+  totalComments: {
+    type: Number,
+    default: 0,
+  },
   timestamp: {
     type: Date,
     default: Date.now,
