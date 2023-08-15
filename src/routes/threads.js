@@ -13,4 +13,7 @@ router.get('/threads/:id/likes', threadsController.getLikesThread);
 router.post('/threads/:id/likes', threadsController.likeThread);
 router.delete('/threads/:id/likes', threadsController.unlikeThread);
 
+router.get('/threads/:id/comments', threadsController.getCommentsThread);
+router.post('/threads/:id/comments', threadsController.createCommentThread);
+
 module.exports = router;
