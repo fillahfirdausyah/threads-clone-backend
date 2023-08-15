@@ -37,7 +37,7 @@ NotificationsSchema.methods.getDataModel = function () {
     case 'like':
       return 'Thread';
     case 'comment':
-      return 'Comment';
+      return 'Thread';
     default:
       return null;
   }
