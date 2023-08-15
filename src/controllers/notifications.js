@@ -2,6 +2,7 @@ const connectToDatabase = require('../database/database');
 const User = require('../database/models/user');
 const Thread = require('../database/models/thread');
 const Notifications = require('../database/models/notifications');
+const ThreadsComment = require('../database/models/threadsComment');
 
 const getAllNotifications = async (req, res) => {
   await connectToDatabase();
@@ -24,7 +25,12 @@ const getAllNotifications = async (req, res) => {
     });
 
     for (const type in notificationsByType) {
-      const dataModel = type === 'like' ? 'Thread' : 'User'; // Ganti dengan model yang sesuai
+      const dataModel =
+        type === 'like'
+          ? 'Thread'
+          : type === 'comment'
+          ? 'ThreadsComment'
+          : 'User'; // Ganti dengan model yang sesuai
       if (dataModel) {
         await Notifications.populate(notificationsByType[type], {
           path: 'data',
@@ -41,6 +47,22 @@ const getAllNotifications = async (req, res) => {
           await Notifications.populate(notificationsByType[type], {
             path: 'actionUser',
             model: 'User',
+          });
+        }
+
+        if (type === 'comment') {
+          await Notifications.populate(notificationsByType[type], {
+            path: 'actionUser',
+            model: 'User',
+          });
+
+          await Notifications.populate(notificationsByType[type], {
+            path: 'data.thread_id',
+            model: 'Thread',
+            populate: {
+              path: 'creator',
+              model: 'User',
+            },
           });
         }
       }
