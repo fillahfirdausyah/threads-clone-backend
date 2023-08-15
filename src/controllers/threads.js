@@ -3,6 +3,7 @@ require('../database/models/user');
 const Thread = require('../database/models/thread');
 const ThreadLikes = require('../database/models/threadsLikes');
 const Notifications = require('../database/models/notifications');
+const ThreadComments = require('../database/models/threadsComment');
 
 /**
  * Function to handle request get all threads
@@ -24,7 +25,7 @@ const getThreads = async (req, res) => {
         return thread.creator.username === username;
       });
 
-      // check if threads has been liked by session user user
+      // check if threads have been liked by session user
       const threadsWithLikes = await Promise.all(
         filteredThreads.map(async (thread) => {
           const checkLike = await ThreadLikes.findOne({
@@ -46,10 +47,24 @@ const getThreads = async (req, res) => {
         })
       );
 
+      // Populate data dari pengguna yang memberikan komentar pada thread
+      const threadsWithComments = await Promise.all(
+        threadsWithLikes.map(async (thread) => {
+          const comments = await ThreadComments.find({ thread_id: thread._id })
+            .populate('commenter_id', 'username image') // Populasi untuk mendapatkan data username dan image
+            .sort({ action_at: 1 }); // Mengurutkan komentar dari yang pertama
+
+          return {
+            ...thread,
+            comments: comments, // Menambahkan data komentar ke dalam thread
+          };
+        })
+      );
+
       return res.json({
         message: 'Success',
         status: 200,
-        data: threadsWithLikes,
+        data: threadsWithComments,
       });
     } catch (error) {
       return res.status(500).json({
@@ -58,12 +73,13 @@ const getThreads = async (req, res) => {
       });
     }
   }
+
   //   get all threads from newest to oldest
   const threads = await Thread.find({})
     .sort({ timestamp: -1 })
     .populate('creator');
 
-  // check if threads has been liked by user
+  // check if threads have been liked by user
   const threadsWithLikes = await Promise.all(
     threads.map(async (thread) => {
       const checkLike = await ThreadLikes.findOne({
@@ -85,13 +101,25 @@ const getThreads = async (req, res) => {
     })
   );
 
+  const threadsWithComments = await Promise.all(
+    threadsWithLikes.map(async (thread) => {
+      const comments = await ThreadComments.find({ thread_id: thread._id })
+        .populate('commenter_id', 'username image') // Populasi untuk mendapatkan data username dan image
+        .sort({ action_at: 1 }); // Mengurutkan komentar dari yang pertama
+
+      return {
+        ...thread,
+        comments: comments, // Menambahkan data komentar ke dalam thread
+      };
+    })
+  );
+
   return res.json({
     message: 'Success',
     status: 200,
-    data: threadsWithLikes,
+    data: threadsWithComments,
   });
 };
-
 /**
  * Function to handle request get thread by id
  * @param {*} req
@@ -410,6 +438,101 @@ const getLikesThread = async (req, res) => {
   }
 };
 
+/**
+ * Function to handle request comments on thread
+ * @param {*} req
+ * @param {*} res
+ */
+const createCommentThread = async (req, res) => {
+  const { id } = req.params;
+  const { userId, comment } = req.body;
+  const socket = req.app.get('socketio');
+
+  try {
+    await connectToDatabase();
+    const thread = await Thread.findById(id);
+
+    if (!thread) {
+      return res.status(404).json({
+        message: 'Thread not found',
+      });
+    }
+
+    const newComment = new ThreadComments({
+      commenter_id: userId,
+      thread_id: id,
+      comment,
+    });
+    await Thread.findByIdAndUpdate(id, {
+      totalComments: thread.totalComments + 1,
+    });
+    await newComment.save();
+
+    const newNotification = new Notifications({
+      user_id: thread.creator,
+      type: 'comment',
+      data: newComment._id,
+      is_read: false,
+      actionUser: userId,
+    });
+
+    await newNotification.save();
+
+    if (userId !== thread.creator.toString()) {
+      socket.emit(
+        `commentsNotifications:${thread.creator._id}`,
+        newNotification
+      );
+    }
+
+    return res.json({
+      message: 'Success create comment',
+      data: newComment,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: 'Internal Server Error',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Function to handle request get comments on thread
+ * @param {*} req
+ * @param {*} res
+ */
+const getCommentsThread = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await connectToDatabase();
+    const thread = await Thread.findById(id);
+
+    if (!thread) {
+      return res.status(404).json({
+        message: 'Thread not found',
+      });
+    }
+
+    const comments = await ThreadComments.find({ thread_id: id }).populate(
+      'commenter_id'
+    );
+
+    return res.json({
+      message: 'Success get comments',
+      data: comments,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: 'Internal Server Error',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getThreads,
   createThread,
@@ -418,4 +541,6 @@ module.exports = {
   unlikeThread,
   getLikesThread,
   getThreadById,
+  createCommentThread,
+  getCommentsThread,
 };
