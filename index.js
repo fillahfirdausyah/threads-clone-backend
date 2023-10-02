@@ -9,6 +9,7 @@ const socketIO = require('socket.io');
 
 const app = express();
 const port = process.env.PORT || 5000;
+const path = '/v1';
 
 // Url Endcoded
 app.use(express.urlencoded({ extended: true }));
@@ -31,6 +32,7 @@ const usersRoutes = require('./src/routes/user');
 const authRoutes = require('./src/routes/auth');
 const followersRoutes = require('./src/routes/followers');
 const notificationsRoutes = require('./src/routes/notifications');
+const chatRoutes = require('./src/routes/chat');
 
 app.get('/', (req, res) => {
   res.set('Content-Type', 'text/html');
@@ -48,11 +50,12 @@ const io = new socketIO.Server(httpServer, {
 });
 
 // Routes List
-app.use('/v1', threadsRoutes);
-app.use('/v1', usersRoutes);
-app.use('/v1', authRoutes);
-app.use('/v1', followersRoutes);
-app.use('/v1', notificationsRoutes);
+app.use(path, threadsRoutes);
+app.use(path, usersRoutes);
+app.use(path, authRoutes);
+app.use(path, followersRoutes);
+app.use(path, notificationsRoutes);
+app.use(path, chatRoutes);
 
 let users = [];
 
