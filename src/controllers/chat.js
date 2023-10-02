@@ -1,19 +1,24 @@
 const connectToDatabase = require('../database/database');
 const User = require('../database/models/user');
 const Chat = require('../database/models/chat');
+const createChatroomIdentifier = require('../utils/createChatroomIdentifier');
 
 exports.getChat = async (req, res) => {
   try {
     const { chatRoomId } = req.params;
 
-    await connectToDatabase();
+    if (!chatRoomId) {
+      return res.status(400).json({ error: 'Chat room is required' });
+    }
+
     const chatRoomIdArr = chatRoomId.split('&');
-    const chats = await Chat.findOne({
-      $or: [
-        { chatRoomId: `${chatRoomIdArr[0]}&${chatRoomIdArr[1]}` },
-        { chatRoomId: `${chatRoomIdArr[1]}&${chatRoomIdArr[0]}` },
-      ],
-    });
+    const newChatRoomId = createChatroomIdentifier(
+      chatRoomIdArr[0],
+      chatRoomIdArr[1]
+    );
+
+    await connectToDatabase();
+    const chats = await Chat.findOne({ chatRoomId: newChatRoomId });
 
     if (!chats) {
       return res.status(404).json({
@@ -35,8 +40,15 @@ exports.getChat = async (req, res) => {
 exports.sendChat = async (req, res) => {
   try {
     const { userId } = req.query;
-    // const { chatRoomId } = req.params;
-    const { message, chatRoomId } = req.body;
+    const { chatRoomId } = req.params;
+    const { message } = req.body;
+    const socket = req.app.get('socketio');
+
+    const chatRoomIdArr = chatRoomId.split('&');
+    const newChatRoomId = createChatroomIdentifier(
+      chatRoomIdArr[0],
+      chatRoomIdArr[1]
+    );
 
     await connectToDatabase();
 
@@ -52,11 +64,17 @@ exports.sendChat = async (req, res) => {
       return res.status(400).json({ error: 'Chat room is required' });
     }
 
-    const chatRoom = await Chat.findOne({ chatRoomId: chatRoomId });
+    const chatRoom = await Chat.findOne({ chatRoomId: newChatRoomId });
+
+    const userReceiver = await User.findOne({ username: chatRoomIdArr[1] });
+
+    if (!userReceiver) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     if (!chatRoom) {
       const newRoom = new Chat({
-        chatRoomId: chatRoomId,
+        chatRoomId: newChatRoomId,
         users: [userId],
         chats: [
           {
@@ -67,6 +85,13 @@ exports.sendChat = async (req, res) => {
       });
 
       await newRoom.save();
+
+      socket.emit(`chat:${userReceiver._id}`, {
+        userId: userId,
+        message: message,
+      });
+
+      return res.status(200).json({ message: 'Message sent' });
     }
 
     const newChat = {
@@ -75,9 +100,14 @@ exports.sendChat = async (req, res) => {
     };
 
     await Chat.findOneAndUpdate(
-      { chatRoomId: chatRoomId },
+      { chatRoomId: newChatRoomId },
       { $push: { chats: newChat } }
     );
+
+    socket.emit(`chat:${userReceiver._id}`, {
+      userId: userId,
+      message: message,
+    });
 
     return res.status(200).json({ message: 'Message sent' });
   } catch (error) {
